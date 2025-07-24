@@ -1,1 +1,261 @@
-1
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер привычек на 30 дней</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Библиотека для генерации Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" xintegrity="sha512-r22gChDnGvBylk90+2e/ycr3RVr/flLENPg9woAYz8//csVAp6MkssLR6CGGYDuB2zWH8_cso2fsigL/3Gvl8g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Исправление для Google Sites */
+        html, body {
+            height: auto !important;
+            min-height: 1px !important;
+            overflow: visible !important; 
+        }
+
+        /* Стили для ячеек трекера */
+        .tracker-cell {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-size: 1.5rem; /* Размер иконок */
+            line-height: 1;
+            user-select: none; /* Запрещаем выделение текста в ячейках */
+        }
+        .tracker-cell:hover {
+            background-color: #4b5563; /* gray-600 */
+        }
+        .tracker-cell.done {
+            color: #22c55e; /* green-500 */
+        }
+        .tracker-cell.missed {
+            color: #ef4444; /* red-500 */
+        }
+        
+        /* Стили для инпутов привычек */
+        .habit-input {
+            background-color: transparent;
+            border: none;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        .habit-input:focus {
+            outline: none;
+            background-color: #4b5563; /* gray-600 */
+        }
+        .habit-input::placeholder {
+            color: #9ca3af; /* gray-400 */
+        }
+
+        /* Адаптивность таблицы */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+        }
+        .table-container table {
+            min-width: 500px; /* Минимальная ширина, чтобы колонки не сжимались */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div id="main-container" class="container mx-auto max-w-5xl p-4 sm:p-8">
+        
+        <!-- Заголовок и инструкция -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">
+                📅 Трекер привычек на 30 дней
+            </h1>
+            <p class="mt-4 text-base text-gray-400 max-w-2xl mx-auto">Выберите до 4-х привычек. Отмечайте прогресс каждый день. В конце месяца вы сможете посмотреть свой прогресс.</p>
+        </header>
+
+        <!-- Примеры привычек -->
+        <div class="bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
+            <h3 class="font-bold text-xl text-white mb-4">💡 Пример привычек:</h3>
+            <div class="flex flex-wrap gap-3">
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">💧 Выпить 1,5–2 л воды</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">🏃 30 минут активности</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">🍽️ Есть медленно</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">😴 Сон до 23:00</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">🤸 Утренняя зарядка</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">🧘 10 минут тишины</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">🍰 Не есть сладкое</span>
+                <span class="bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-full transition-colors hover:bg-gray-600 cursor-default">📱 Нет гаджетов за час до сна</span>
+            </div>
+        </div>
+
+        <!-- Трекер -->
+        <main id="tracker-main" class="bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6">
+            <!-- ИНСТРУКЦИЯ -->
+            <div class="bg-gray-700/50 p-4 rounded-lg mb-4 text-sm text-gray-300">
+                <p><span class="font-bold">Шаг 1:</span> Впишите названия своих привычек в заголовки колонок.</p>
+                <p class="mt-1"><span class="font-bold">Шаг 2:</span> Кликайте на ячейки, чтобы отметить прогресс (✅ - выполнено, ❌ - пропущено).</p>
+                <p class="mt-1"><span class="font-bold">Шаг 3:</span> Сохраните таблицу себе на устройство.</p>
+            </div>
+            <div class="table-container">
+                <table class="w-full border-collapse text-center">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="p-2 sm:p-4 w-16 text-white font-semibold">День</th>
+                            <th class="p-2 sm:p-4"><input type="text" id="habit-0" class="habit-input" placeholder="Привычка 1"></th>
+                            <th class="p-2 sm:p-4"><input type="text" id="habit-1" class="habit-input" placeholder="Привычка 2"></th>
+                            <th class="p-2 sm:p-4"><input type="text" id="habit-2" class="habit-input" placeholder="Привычка 3"></th>
+                            <th class="p-2 sm:p-4"><input type="text" id="habit-3" class="habit-input" placeholder="Привычка 4"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracker-body">
+                        <!-- 30 дней будут сгенерированы JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- Кнопки и заключение -->
+        <div class="mt-8 text-center text-gray-400 space-y-4">
+            <div class="flex flex-wrap justify-center gap-4">
+                <button id="save-excel-btn" class="bg-emerald-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-emerald-700 transition-colors shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-500/50 disabled:bg-gray-600">
+                    Скачать как Excel
+                </button>
+            </div>
+            <p>📌 Скачайте себе трекер и ведите в течении 30 дней.</p>
+            <p>По окончании 30 дней будем делать разбор.</p>
+        </div>
+
+        <!-- Подвал -->
+        <footer class="text-center mt-12 border-t border-gray-700 pt-6">
+            <p class="text-sm text-gray-500">&copy; 2025 г. Все права защищены. Специально для проекта Body balance.</p>
+        </footer>
+
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('main-container');
+            const trackerBody = document.getElementById('tracker-body');
+            const habitInputs = document.querySelectorAll('.habit-input');
+            const saveExcelButton = document.getElementById('save-excel-btn');
+            const trackerMain = document.getElementById('tracker-main');
+
+            const NUM_DAYS = 30;
+            const NUM_HABITS = 4;
+            const STORAGE_KEY = 'habitTrackerState_v2';
+
+            const states = ['', '✅', '❌'];
+            const stateClasses = ['', 'done', 'missed'];
+            const excelStates = ['', '✅', '❌'];
+
+            let trackerState = {
+                habits: Array(NUM_HABITS).fill(''),
+                grid: Array(NUM_DAYS).fill(null).map(() => Array(NUM_HABITS).fill(0))
+            };
+
+            function saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(trackerState));
+                } catch (e) {
+                    console.error("Не удалось сохранить состояние:", e);
+                }
+            }
+
+            function loadState() {
+                try {
+                    const savedState = localStorage.getItem(STORAGE_KEY);
+                    if (savedState) {
+                        const parsedState = JSON.parse(savedState);
+                        if (parsedState.habits && parsedState.habits.length === NUM_HABITS) {
+                            trackerState = parsedState;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Не удалось загрузить состояние:", e);
+                }
+            }
+
+            function initializeTracker() {
+                loadState();
+                let tableHTML = '';
+                for (let day = 0; day < NUM_DAYS; day++) {
+                    tableHTML += `<tr class="border-b border-gray-700">`;
+                    tableHTML += `<td class="p-2 sm:p-4 font-semibold text-gray-300">${day + 1}</td>`;
+                    for (let habit = 0; habit < NUM_HABITS; habit++) {
+                        const state = trackerState.grid[day][habit];
+                        tableHTML += `<td class="p-2 sm:p-4 tracker-cell ${stateClasses[state]}" data-day="${day}" data-habit="${habit}">${states[state]}</td>`;
+                    }
+                    tableHTML += `</tr>`;
+                }
+                trackerBody.innerHTML = tableHTML;
+                habitInputs.forEach((input, index) => {
+                    if (trackerState.habits[index]) {
+                        input.value = trackerState.habits[index];
+                    }
+                });
+            }
+
+            trackerBody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('tracker-cell')) {
+                    const day = parseInt(e.target.dataset.day);
+                    const habit = parseInt(e.target.dataset.habit);
+                    let currentState = trackerState.grid[day][habit];
+                    currentState = (currentState + 1) % states.length;
+                    trackerState.grid[day][habit] = currentState;
+                    e.target.textContent = states[currentState];
+                    e.target.className = `p-2 sm:p-4 tracker-cell ${stateClasses[currentState]}`;
+                    saveState();
+                }
+            });
+
+            habitInputs.forEach((input, index) => {
+                input.addEventListener('input', () => {
+                    trackerState.habits[index] = input.value;
+                    saveState();
+                });
+            });
+
+            saveExcelButton.addEventListener('click', () => {
+                const header = ['День', ...trackerState.habits.map((h, i) => h || `Привычка ${i + 1}`)];
+                const data = trackerState.grid.map((dayRow, dayIndex) => {
+                    const row = [dayIndex + 1];
+                    dayRow.forEach(state => row.push(excelStates[state]));
+                    return row;
+                });
+
+                const worksheet = XLSX.utils.aoa_to_sheet([header, ...data]);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Трекер привычек');
+                XLSX.writeFile(workbook, 'Трекер_привычек.xlsx');
+            });
+
+            if ('ResizeObserver' in window) {
+                const observer = new ResizeObserver(entries => {
+                    if (entries.length > 0) {
+                        const height = entries[0].target.scrollHeight;
+                        document.body.style.height = height + 'px';
+                        document.documentElement.style.height = height + 'px';
+                    }
+                });
+                if (container) observer.observe(container);
+            } else {
+                const resizeFallback = () => {
+                    if(container) document.body.style.height = container.scrollHeight + 'px';
+                };
+                setInterval(resizeFallback, 300);
+                window.addEventListener('resize', resizeFallback);
+            }
+
+            initializeTracker();
+        });
+    </script>
+</body>
+</html>
